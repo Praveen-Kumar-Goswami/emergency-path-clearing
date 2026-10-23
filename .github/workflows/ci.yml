@@ -10,6 +10,8 @@ jobs:
   verify:
     name: Lint, Test & Build Validation
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--no-deprecation"
 
     steps:
       - name: Checkout Repository
@@ -19,10 +21,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
-      - name: Install Root Dependencies
-        run: npm ci || npm install
+      - name: Install Web Dependencies
+        run: npm install --prefix web
+
+      - name: Install Mobile Dependencies
+        run: npm install --prefix mobile
 
       - name: Run Native Test Suite (100% Pass)
         run: npm test
