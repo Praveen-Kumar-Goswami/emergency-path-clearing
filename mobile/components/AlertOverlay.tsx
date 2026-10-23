@@ -134,7 +134,7 @@ export const AlertOverlay: React.FC<AlertOverlayProps> = ({
           {isBlocking ? 'You are blocking the ambulance!' : 'Ambulance Approaching'}
         </Text>
 
-        <View style={styles.distanceBox}>
+        <View style={styles.distanceBox} accessible={true} accessibilityLabel={`Distance to ambulance: ${roundedDist} meters behind you`}>
           <Text style={styles.distanceNumber}>{roundedDist}</Text>
           <Text style={styles.distanceUnit}>meters behind you</Text>
         </View>
@@ -150,11 +150,15 @@ export const AlertOverlay: React.FC<AlertOverlayProps> = ({
             style={styles.ackButton}
             onPress={() => onAcknowledge(alert.id)}
             activeOpacity={0.85}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="I am moving aside"
+            accessibilityHint="Confirms to the dispatcher and ambulance that you are clearing the road"
           >
             <Text style={styles.ackButtonText}>I'm Moving Aside</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.acknowledgedBox}>
+          <View style={styles.acknowledgedBox} accessible={true} accessibilityRole="status">
             <Text style={styles.acknowledgedText}>
               ✓ Status reported: Moving to the {MOVE_SIDE}. Stand by until ambulance passes.
             </Text>

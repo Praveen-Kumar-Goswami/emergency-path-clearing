@@ -29,43 +29,51 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Navigation View Switcher */}
-      <nav className="header-nav">
+      <nav className="header-nav" role="tablist" aria-label="Dashboard Views">
         <button
+          role="tab"
+          aria-selected={currentView === 'map'}
           className={`nav-btn ${currentView === 'map' ? 'active' : ''}`}
           onClick={() => onSelectView('map')}
         >
-          <span className="nav-icon">🗺️</span>
+          <span className="nav-icon" aria-hidden="true">🗺️</span>
           <span>Live Fleet Map</span>
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentView === 'analytics'}
           className={`nav-btn ${currentView === 'analytics' ? 'active' : ''}`}
           onClick={() => onSelectView('analytics')}
         >
-          <span className="nav-icon">📊</span>
+          <span className="nav-icon" aria-hidden="true">📊</span>
           <span>Corridor Analytics</span>
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentView === 'how-it-works'}
           className={`nav-btn ${currentView === 'how-it-works' ? 'active' : ''}`}
           onClick={() => onSelectView('how-it-works')}
         >
-          <span className="nav-icon">🔬</span>
+          <span className="nav-icon" aria-hidden="true">🔬</span>
           <span>How It Works & Lab</span>
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentView === 'fleet'}
           className={`nav-btn ${currentView === 'fleet' ? 'active' : ''}`}
           onClick={() => onSelectView('fleet')}
         >
-          <span className="nav-icon">👥</span>
+          <span className="nav-icon" aria-hidden="true">👥</span>
           <span>Fleet & Units</span>
         </button>
       </nav>
 
       <div className="header-meta">
-        <div className={`telemetry-pill ${connection}`}>
-          <span className="pill-dot" />
+        <div className={`telemetry-pill ${connection}`} role="status" aria-live="polite">
+          <span className="pill-dot" aria-hidden="true" />
           <span>
             {connection === 'live'
               ? 'LIVE TELEMETRY'

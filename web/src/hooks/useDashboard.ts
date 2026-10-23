@@ -70,9 +70,10 @@ export const useDashboard = (enabled: boolean = true) => {
     };
 
     // Initial fetch
-    fetchSnapshot().then(() => {
+    void (async () => {
+      await fetchSnapshot();
       if (isMounted) scheduleNextPoll();
-    });
+    })();
 
     return () => {
       isMounted = false;

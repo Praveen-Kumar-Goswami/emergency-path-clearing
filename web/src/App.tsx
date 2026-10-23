@@ -30,7 +30,6 @@ export default function App() {
 
   // Check Supabase connection on startup
   const testSupabaseConnection = async () => {
-    setConnStatus('checking');
     try {
       const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
       if (error) {
@@ -49,7 +48,6 @@ export default function App() {
   // Restore and verify session
   const verifySession = async () => {
     try {
-      setAuthLoading(true);
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (currentSession?.user) {
         const { data: profile } = await supabase
@@ -80,8 +78,61 @@ export default function App() {
   };
 
   useEffect(() => {
-    testSupabaseConnection();
-    verifySession();
+    let ignore = false;
+
+    const bootstrap = async () => {
+      try {
+        const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
+        if (!ignore) {
+          if (error) {
+            setConnStatus('error');
+            setConnError(error.message);
+          } else {
+            setConnStatus('connected');
+            setConnError(null);
+          }
+        }
+      } catch (e: any) {
+        if (!ignore) {
+          setConnStatus('error');
+          setConnError(e.message || 'Failed to reach Supabase backend.');
+        }
+      }
+
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!ignore) {
+          if (currentSession?.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', currentSession.user.id)
+              .maybeSingle();
+
+            if (profile?.role === 'dispatcher') {
+              setSession(currentSession);
+              setIsDispatcher(true);
+            } else {
+              setSession(null);
+              setIsDispatcher(false);
+            }
+          } else {
+            setSession(null);
+            setIsDispatcher(false);
+          }
+          setAuthLoading(false);
+        }
+      } catch (e) {
+        if (!ignore) {
+          console.warn('Session verification error:', e);
+          setSession(null);
+          setIsDispatcher(false);
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    void bootstrap();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (newSession?.user) {
@@ -104,7 +155,10 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      ignore = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -116,26 +170,25 @@ export default function App() {
   // Live telemetry hook
   const { snapshot, connection, lastUpdated } = useDashboard(isDispatcher);
 
-  // Auto-select newest active trip if none selected or if selected trip ended
-  useEffect(() => {
-    if (!snapshot?.trips) return;
-    const active = activeTrips(snapshot.trips);
-    if (active.length > 0) {
-      const isCurrentActive = active.some((t) => t.id === selectedTripId);
-      if (!selectedTripId || !isCurrentActive) {
-        setSelectedTripId(active[0].id);
-      }
+  const trips = snapshot?.trips;
+  const active = useMemo(() => activeTrips(trips || []), [trips]);
+
+  // Derived effective trip selection: either user's selection if still present/active, or first active trip
+  const effectiveSelectedTripId = useMemo(() => {
+    if (selectedTripId && trips?.some((t) => t.id === selectedTripId)) {
+      return selectedTripId;
     }
-  }, [snapshot?.trips, selectedTripId]);
+    return active[0]?.id || selectedTripId || null;
+  }, [selectedTripId, trips, active]);
 
   const selectedTrip = useMemo<Trip | null>(() => {
-    if (!snapshot?.trips) return null;
-    return snapshot.trips.find((t) => t.id === selectedTripId) || null;
-  }, [snapshot?.trips, selectedTripId]);
+    if (!trips || !effectiveSelectedTripId) return null;
+    return trips.find((t) => t.id === effectiveSelectedTripId) || null;
+  }, [trips, effectiveSelectedTripId]);
 
   const metrics = useMemo(() => {
-    return deriveMetrics(snapshot, selectedTripId);
-  }, [snapshot, selectedTripId]);
+    return deriveMetrics(snapshot, effectiveSelectedTripId);
+  }, [snapshot, effectiveSelectedTripId]);
 
   const handleFocusVehicle = (pos: [number, number]) => {
     setCurrentView('map');
@@ -213,7 +266,7 @@ export default function App() {
             trips={snapshot?.trips || []}
             vehicles={snapshot?.vehicles || []}
             alerts={snapshot?.alerts || []}
-            selectedTripId={selectedTripId}
+            selectedTripId={effectiveSelectedTripId}
             onSelectTrip={(id) => {
               setSelectedTripId(id);
               setFollowAmbulance(true);

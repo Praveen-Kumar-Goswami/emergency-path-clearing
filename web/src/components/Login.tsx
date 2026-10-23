@@ -156,8 +156,16 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             <p>Sign in with your dispatcher credentials to access real-time monitoring</p>
           </div>
 
-          {error && <div className="error-banner">⚠️ {error}</div>}
-          {successMsg && <div className="success-banner">✅ {successMsg}</div>}
+          {error && (
+            <div className="error-banner" role="alert" aria-live="assertive">
+              ⚠️ {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="success-banner" role="status" aria-live="polite">
+              ✅ {successMsg}
+            </div>
+          )}
 
           <form onSubmit={handleLogin}>
             <div className="form-group">
@@ -215,8 +223,16 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             <p>Register as a dispatcher or ambulance operator</p>
           </div>
 
-          {error && <div className="error-banner">⚠️ {error}</div>}
-          {successMsg && <div className="success-banner">✅ {successMsg}</div>}
+          {error && (
+            <div className="error-banner" role="alert" aria-live="assertive">
+              ⚠️ {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="success-banner" role="status" aria-live="polite">
+              ✅ {successMsg}
+            </div>
+          )}
 
           <form onSubmit={handleRegister}>
             {/* Role Selector */}

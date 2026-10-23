@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Snapshot, Trip, Vehicle } from '../lib/types';
 import { activeTrips } from '../lib/derive';
@@ -25,9 +25,9 @@ export const FleetDirectory: React.FC<FleetDirectoryProps> = ({ snapshot, onFocu
   const active: Trip[] = activeTrips(snapshot?.trips || []);
   const vehicles: Vehicle[] = snapshot?.vehicles || [];
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = useCallback(async (showLoadingSpinner = false) => {
+    if (showLoadingSpinner) setLoading(true);
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -41,11 +41,12 @@ export const FleetDirectory: React.FC<FleetDirectoryProps> = ({ snapshot, onFocu
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    // oxlint-disable-next-line react/set-state-in-effect
+    void fetchProfiles(false);
+  }, [fetchProfiles]);
 
   const filteredProfiles = profiles.filter((p) => {
     if (roleFilter !== 'all' && p.role !== roleFilter) return false;
@@ -68,7 +69,7 @@ export const FleetDirectory: React.FC<FleetDirectoryProps> = ({ snapshot, onFocu
             Registered dispatchers, ambulance units, and real-time connected vehicles
           </p>
         </div>
-        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={fetchProfiles}>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px' }} onClick={() => void fetchProfiles(true)}>
           🔄 Refresh Directory
         </button>
       </div>
