@@ -1466,4 +1466,615 @@ html, body, #root {
   }
 }
 
+/* ============================================================
+   TACTICAL DISPATCH MAP — PREMIUM DARK MILITARY/CIVIC INTERACTION
+   ============================================================ */
+
+.map-panel {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.map-view-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #060b17;
+}
+
+.leaflet-map-element {
+  width: 100% !important;
+  height: 100% !important;
+  background: #060b17 !important;
+  z-index: 1;
+}
+
+/* Custom Leaflet Controls - Dark Glass Theme */
+.leaflet-container {
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  background-color: #060b17 !important;
+}
+
+.leaflet-bar {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  background: rgba(10, 22, 40, 0.85) !important;
+}
+
+.leaflet-bar a {
+  background-color: rgba(15, 25, 50, 0.85) !important;
+  color: #f0f4ff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  font-size: 16px !important;
+  transition: all 0.2s ease;
+}
+
+.leaflet-bar a:hover {
+  background-color: rgba(61, 155, 255, 0.2) !important;
+  color: #3d9bff !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(6, 11, 23, 0.8) !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+  padding: 3px 8px !important;
+  backdrop-filter: blur(8px);
+  border-top-left-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: none;
+  border-right: none;
+}
+
+.leaflet-control-attribution a {
+  color: #8fa8d0 !important;
+  text-decoration: none;
+}
+
+.leaflet-control-attribution a:hover {
+  text-decoration: underline;
+}
+
+/* =================== AMBULANCE DIVICON =================== */
+.amb-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.tactical-amb-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.amb-body {
+  position: relative;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 0 12px rgba(255, 45, 85, 0.85));
+  transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.amb-beacon-ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 45, 85, 0.7);
+  box-shadow: 0 0 16px rgba(255, 45, 85, 0.6);
+  z-index: 2;
+  animation: amb-pulse 1.8s ease-out infinite;
+}
+
+.amb-radar-pulse {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 45, 85, 0.4);
+  background: radial-gradient(circle, rgba(255, 45, 85, 0.25) 0%, transparent 70%);
+  z-index: 1;
+  animation: amb-radar 2.2s cubic-bezier(0.1, 0.7, 0.1, 1) infinite;
+  pointer-events: none;
+}
+
+.tactical-amb-marker.active .amb-radar-pulse {
+  animation-duration: 1.2s;
+  border-color: rgba(255, 45, 85, 0.7);
+}
+
+.amb-label {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #ff2d55, #c0152d);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  z-index: 4;
+  white-space: nowrap;
+}
+
+@keyframes amb-pulse {
+  0% { transform: scale(0.9); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+  100% { transform: scale(0.9); opacity: 1; }
+}
+
+@keyframes amb-radar {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* =================== VEHICLE DIVICON =================== */
+.veh-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.tactical-veh-marker {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.veh-pointer {
+  position: relative;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.4s ease;
+}
+
+.veh-pulse-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  z-index: 1;
+  animation: veh-alert-pulse 1.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.tactical-veh-marker.state-blocking .veh-pulse-ring {
+  border: 2px solid #ff3838;
+  box-shadow: 0 0 12px rgba(255, 56, 56, 0.6);
+  background: rgba(255, 56, 56, 0.15);
+}
+
+.tactical-veh-marker.state-active .veh-pulse-ring {
+  border: 2px solid #ffb020;
+  box-shadow: 0 0 12px rgba(255, 176, 32, 0.6);
+  background: rgba(255, 176, 32, 0.15);
+}
+
+.tactical-veh-marker.state-acknowledged .veh-pulse-ring {
+  border: 1.5px solid #00e87a;
+  box-shadow: 0 0 8px rgba(0, 232, 122, 0.4);
+  background: rgba(0, 232, 122, 0.1);
+  animation-duration: 2.2s;
+}
+
+.veh-id-badge {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 22, 40, 0.9);
+  color: #94a3b8;
+  font-size: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  z-index: 4;
+  white-space: nowrap;
+}
+
+.tactical-veh-marker.state-blocking .veh-id-badge {
+  color: #ff3838;
+  border-color: rgba(255, 56, 56, 0.4);
+}
+
+.tactical-veh-marker.state-active .veh-id-badge {
+  color: #ffb020;
+  border-color: rgba(255, 176, 32, 0.4);
+}
+
+.tactical-veh-marker.state-acknowledged .veh-id-badge {
+  color: #00e87a;
+  border-color: rgba(0, 232, 122, 0.4);
+}
+
+@keyframes veh-alert-pulse {
+  0% { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* =================== CUSTOM POPUPS =================== */
+.custom-popup .leaflet-popup-content-wrapper {
+  background: rgba(10, 22, 40, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  padding: 0 !important;
+  color: #f0f4ff !important;
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.custom-popup .leaflet-popup-tip {
+  background: rgba(10, 22, 40, 0.95) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.popup-card-content {
+  padding: 12px 14px;
+  min-width: 200px;
+}
+
+.popup-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.popup-title-bar strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f0f4ff;
+  letter-spacing: -0.2px;
+}
+
+.popup-icon {
+  font-size: 15px;
+}
+
+.popup-data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.popup-data-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-data-item .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.popup-data-item .val {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.popup-data-item .val.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.popup-data-item .val.red {
+  color: #ff3838;
+}
+
+.popup-data-item.highlight {
+  grid-column: 1 / -1;
+  background: rgba(255, 56, 56, 0.12);
+  border: 1px solid rgba(255, 56, 56, 0.25);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-top: 2px;
+}
+
+.status-pill {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-pill.active {
+  background: rgba(0, 232, 122, 0.18);
+  color: #00e87a;
+  border: 1px solid rgba(0, 232, 122, 0.4);
+}
+
+.status-pill.state-blocking {
+  background: rgba(255, 56, 56, 0.2);
+  color: #ff3838;
+  border: 1px solid rgba(255, 56, 56, 0.4);
+}
+
+.status-pill.state-active {
+  background: rgba(255, 176, 32, 0.2);
+  color: #ffb020;
+  border: 1px solid rgba(255, 176, 32, 0.4);
+}
+
+.status-pill.state-acknowledged {
+  background: rgba(0, 232, 122, 0.2);
+  color: #00e87a;
+  border: 1px solid rgba(0, 232, 122, 0.4);
+}
+
+.status-pill.state-none {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* =================== FLOATING TACTICAL TOOLBAR =================== */
+.map-tactical-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(10, 22, 40, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  font-family: inherit;
+  user-select: none;
+}
+
+.hud-btn:hover {
+  background: rgba(15, 28, 54, 0.95);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+}
+
+.hud-btn:active {
+  transform: translateY(0);
+}
+
+.hud-btn.active {
+  background: rgba(61, 155, 255, 0.2);
+  border-color: rgba(61, 155, 255, 0.55);
+  color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+}
+
+.hud-icon {
+  font-size: 14px;
+}
+
+.hud-pill-group {
+  display: inline-flex;
+  background: rgba(10, 22, 40, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+
+.hud-pill {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 7px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  user-select: none;
+}
+
+.hud-pill:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hud-pill.selected {
+  background: rgba(61, 155, 255, 0.25);
+  color: #38bdf8;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* =================== FLOATING TACTICAL LEGEND =================== */
+.map-tactical-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  z-index: 1000;
+  background: rgba(10, 22, 40, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  min-width: 220px;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: auto;
+}
+
+.map-tactical-legend.collapsed {
+  min-width: 170px;
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: rgba(15, 25, 50, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.legend-header:hover {
+  background: rgba(20, 35, 70, 0.7);
+}
+
+.legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #cbd5e1;
+}
+
+.legend-toggle {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.legend-body {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.legend-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-color-dot.amb-dot {
+  background: #ff2d55;
+  box-shadow: 0 0 8px #ff2d55;
+}
+
+.legend-color-dot.blocking-dot {
+  background: #ff3838;
+  box-shadow: 0 0 8px #ff3838;
+}
+
+.legend-color-dot.alert-dot {
+  background: #ffb020;
+  box-shadow: 0 0 8px #ffb020;
+}
+
+.legend-color-dot.ack-dot {
+  background: #00e87a;
+  box-shadow: 0 0 8px #00e87a;
+}
+
+.legend-color-dot.normal-dot {
+  background: #94a3b8;
+}
+
+.legend-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+.corridor-line-preview {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.corridor-line-preview.hazard {
+  background: #ff3838;
+  box-shadow: 0 0 6px rgba(255, 56, 56, 0.8);
+}
+
+.corridor-line-preview.corridor {
+  background: #00e5ff;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+  .map-tactical-toolbar {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+  .hud-btn span:not(.hud-icon) {
+    display: none;
+  }
+  .hud-pill {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .map-tactical-legend {
+    bottom: 12px;
+    left: 12px;
+    max-width: 180px;
+  }
+}
+
+
 

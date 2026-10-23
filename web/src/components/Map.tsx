@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
   Polyline,
   Marker,
-  CircleMarker,
   Popup,
   useMap,
 } from 'react-leaflet';
@@ -21,24 +20,88 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Custom DivIcon for ambulance with rotating arrow and pulsing aura
+export type MapTileTheme = 'dark' | 'satellite' | 'street';
+
+const TILE_PROVIDERS: Record<MapTileTheme, { url: string; attribution: string; maxZoom: number }> = {
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+    maxZoom: 20,
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; DigitalGlobe, GeoEye, Earthstar',
+    maxZoom: 19,
+  },
+  street: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+    maxZoom: 19,
+  },
+};
+
+/**
+ * Creates custom tactical DivIcon for an emergency ambulance with siren strobe & directional heading.
+ */
 const createAmbulanceIcon = (heading: number | null, isActive: boolean) => {
   const rot = heading ?? 0;
   return L.divIcon({
     className: 'amb-marker-wrapper',
     html: `
-      <div class="ambulance-container ${isActive ? 'pulse' : ''}" style="transform: rotate(${rot}deg);">
-        <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-          <polygon points="17,2 32,30 17,24 2,30" fill="#dc2626" stroke="#ffffff" stroke-width="2.5" />
-        </svg>
+      <div class="tactical-amb-marker ${isActive ? 'active' : ''}">
+        <div class="amb-beacon-ring"></div>
+        <div class="amb-radar-pulse"></div>
+        <div class="amb-body" style="transform: rotate(${rot}deg);">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <polygon points="20,2 36,34 20,27 4,34" fill="#ff2d55" stroke="#ffffff" stroke-width="2.5" />
+            <circle cx="20" cy="20" r="4.5" fill="#ffffff" />
+          </svg>
+        </div>
+        <span class="amb-label">AMB</span>
       </div>
     `,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 };
 
-// Map controller subcomponent for camera follow and fitBounds
+/**
+ * Creates custom tactical DivIcon for civilian vehicles with status glow and heading pointer.
+ */
+const createVehicleIcon = (
+  state: VehicleVisualState,
+  heading: number | null,
+  shortId: string
+) => {
+  const rot = heading ?? 0;
+  const isAlerted = state !== 'none';
+  const color =
+    state === 'blocking'
+      ? '#ff3838'
+      : state === 'active'
+      ? '#ffb020'
+      : state === 'acknowledged'
+      ? '#00e87a'
+      : '#94a3b8';
+
+  return L.divIcon({
+    className: 'veh-marker-wrapper',
+    html: `
+      <div class="tactical-veh-marker state-${state}">
+        ${isAlerted ? `<div class="veh-pulse-ring"></div>` : ''}
+        <div class="veh-pointer" style="transform: rotate(${rot}deg);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.5">
+            <polygon points="12,2 21,21 12,17 3,21" />
+          </svg>
+        </div>
+        <span class="veh-id-badge">#${shortId}</span>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
+
 interface MapControllerProps {
   follow: boolean;
   targetPos: [number, number] | null;
@@ -57,20 +120,22 @@ const MapController: React.FC<MapControllerProps> = ({
   useEffect(() => {
     if (fitBoundsTrigger > 0 && routeCoords.length > 1) {
       const bounds = L.latLngBounds(routeCoords);
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
     }
   }, [fitBoundsTrigger, map, routeCoords]);
 
   useEffect(() => {
     if (follow && targetPos) {
-      map.panTo(targetPos, { animate: true, duration: 0.5 });
+      map.panTo(targetPos, { animate: true, duration: 0.6 });
     }
   }, [follow, targetPos, map]);
 
   return null;
 };
 
-// Calculate 1 km forward alert zone on route polyline
+/**
+ * Calculates 1,000m forward lookahead danger zone on route polyline starting from ambulance fix.
+ */
 const computeAlertZoneSegment = (
   route: [number, number][],
   ambPos: [number, number] | null,
@@ -78,7 +143,6 @@ const computeAlertZoneSegment = (
 ): [number, number][] => {
   if (!ambPos || route.length < 2) return [];
 
-  // Find index of nearest route point to ambulance
   let nearestIdx = 0;
   let minDistance = Infinity;
 
@@ -130,7 +194,10 @@ export const Map: React.FC<MapProps> = ({
   onToggleFollow,
   focusedVehiclePos,
 }) => {
-  const [fitTrigger, setFitTrigger] = React.useState<number>(0);
+  const [fitTrigger, setFitTrigger] = useState<number>(0);
+  const [tileTheme, setTileTheme] = useState<MapTileTheme>('dark');
+  const [showOnlyAlerted, setShowOnlyAlerted] = useState<boolean>(false);
+  const [legendCollapsed, setLegendCollapsed] = useState<boolean>(false);
   const previousTripIdRef = useRef<string | null>(null);
 
   // Convert selected trip route
@@ -147,7 +214,7 @@ export const Map: React.FC<MapProps> = ({
     return routeCoords[0] || null;
   }, [selectedTrip, routeCoords]);
 
-  // Auto-fit when trip changes
+  // Auto-fit bounds on trip change
   useEffect(() => {
     if (selectedTrip && selectedTrip.id !== previousTripIdRef.current) {
       previousTripIdRef.current = selectedTrip.id;
@@ -155,12 +222,12 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [selectedTrip]);
 
-  // Compute 1km forward alert zone segment
+  // Compute 1km forward hazard zone
   const alertZoneCoords = useMemo(() => {
     return computeAlertZoneSegment(routeCoords, ambPos, LOOKAHEAD_M);
   }, [routeCoords, ambPos]);
 
-  // Map of alerts per user for fast O(1) state lookup
+  // Map of alerts per user
   const userAlertMap = useMemo(() => {
     const alertMap = new window.Map<string, AlertRow>();
     alerts.forEach((a) => {
@@ -171,21 +238,17 @@ export const Map: React.FC<MapProps> = ({
     return alertMap;
   }, [alerts, selectedTrip]);
 
-  // Color mapping helper for vehicles
-  const getVehicleColor = (state: VehicleVisualState): string => {
-    switch (state) {
-      case 'blocking':
-        return '#ef4444'; // Red
-      case 'active':
-        return '#f59e0b'; // Amber
-      case 'acknowledged':
-        return '#22c55e'; // Green
-      default:
-        return '#94a3b8'; // Gray
-    }
-  };
+  // Filtered vehicles
+  const displayedVehicles = useMemo(() => {
+    if (!showOnlyAlerted) return vehicles;
+    return vehicles.filter((v) => {
+      const state = deriveVehicleAlertState(v.user_id, userAlertMap);
+      return state !== 'none';
+    });
+  }, [vehicles, showOnlyAlerted, userAlertMap]);
 
   const centerPos = ambPos || routeCoords[0] || DEFAULT_CENTER;
+  const currentTile = TILE_PROVIDERS[tileTheme];
 
   return (
     <div className="map-view-container">
@@ -196,9 +259,10 @@ export const Map: React.FC<MapProps> = ({
         className="leaflet-map-element"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maxZoom={19}
+          key={tileTheme}
+          attribution={currentTile.attribution}
+          url={currentTile.url}
+          maxZoom={currentTile.maxZoom}
         />
 
         <MapController
@@ -208,34 +272,63 @@ export const Map: React.FC<MapProps> = ({
           routeCoords={routeCoords}
         />
 
-        {/* Selected Trip Route */}
+        {/* 1. 35m Corridor Lateral Buffer Ribbon */}
         {routeCoords.length > 1 && (
           <Polyline
             positions={routeCoords}
             pathOptions={{
-              color: '#2563eb',
-              weight: 6,
-              opacity: 0.8,
+              color: '#00f0ff',
+              weight: 34,
+              opacity: 0.14,
               lineCap: 'round',
               lineJoin: 'round',
             }}
           />
         )}
 
-        {/* 1km Alert Zone Highlight */}
+        {/* 2. Main Route Centerline Glow */}
+        {routeCoords.length > 1 && (
+          <Polyline
+            positions={routeCoords}
+            pathOptions={{
+              color: '#00e5ff',
+              weight: 5,
+              opacity: 0.9,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        )}
+
+        {/* 3. 1km Forward Hazard Lookahead Zone (Outer Danger Aura) */}
         {alertZoneCoords.length > 1 && (
           <Polyline
             positions={alertZoneCoords}
             pathOptions={{
-              color: '#ef4444',
-              weight: 12,
-              opacity: 0.35,
+              color: '#ff2d55',
+              weight: 36,
+              opacity: 0.28,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        )}
+
+        {/* 4. 1km Hazard Zone Centerline with Warning Dashes */}
+        {alertZoneCoords.length > 1 && (
+          <Polyline
+            positions={alertZoneCoords}
+            pathOptions={{
+              color: '#ff3838',
+              weight: 6,
+              opacity: 1,
+              dashArray: '10, 10',
               lineCap: 'round',
             }}
           />
         )}
 
-        {/* Ambulance Marker */}
+        {/* 5. Ambulance Marker */}
         {ambPos && selectedTrip && (
           <Marker
             position={ambPos}
@@ -244,40 +337,47 @@ export const Map: React.FC<MapProps> = ({
               selectedTrip.status === 'active'
             )}
           >
-            <Popup className="custom-popup">
-              <div className="popup-content">
-                <strong>🚑 Emergency Ambulance</strong>
-                <div>Trip ID: #{selectedTrip.id.substring(0, 8)}</div>
-                <div>Status: <span className={`status-${selectedTrip.status}`}>{selectedTrip.status}</span></div>
-                {selectedTrip.amb_heading != null && <div>Heading: {Math.round(selectedTrip.amb_heading)}°</div>}
+            <Popup className="custom-popup" closeButton={false}>
+              <div className="popup-card-content">
+                <div className="popup-title-bar">
+                  <span className="popup-icon">🚑</span>
+                  <strong>Emergency Unit #{selectedTrip.ambulance_id.substring(0, 6)}</strong>
+                  <span className={`status-pill ${selectedTrip.status}`}>
+                    {selectedTrip.status.toUpperCase()}
+                  </span>
+                </div>
+                <div className="popup-data-grid">
+                  <div className="popup-data-item">
+                    <span className="lbl">Heading</span>
+                    <span className="val">{selectedTrip.amb_heading != null ? `${Math.round(selectedTrip.amb_heading)}°` : '—'}</span>
+                  </div>
+                  <div className="popup-data-item">
+                    <span className="lbl">Trip ID</span>
+                    <span className="val mono">#{selectedTrip.id.substring(0, 8)}</span>
+                  </div>
+                </div>
               </div>
             </Popup>
           </Marker>
         )}
 
-        {/* Vehicles */}
-        {vehicles.map((v) => {
+        {/* 6. Civilian Vehicles */}
+        {displayedVehicles.map((v) => {
           const state = deriveVehicleAlertState(v.user_id, userAlertMap);
-          const color = getVehicleColor(state);
           const alert = userAlertMap.get(v.user_id);
 
           return (
-            <CircleMarker
+            <Marker
               key={v.user_id}
-              center={[v.lat, v.lng]}
-              radius={state !== 'none' ? 8 : 6}
-              pathOptions={{
-                color: '#ffffff',
-                weight: 1.5,
-                fillColor: color,
-                fillOpacity: 0.9,
-              }}
+              position={[v.lat, v.lng]}
+              icon={createVehicleIcon(state, v.heading, v.short_id)}
             >
-              <Popup className="custom-popup">
-                <div className="popup-content">
-                  <div className="popup-header">
+              <Popup className="custom-popup" closeButton={false}>
+                <div className="popup-card-content">
+                  <div className="popup-title-bar">
+                    <span className="popup-icon">🚗</span>
                     <strong>Vehicle #{v.short_id}</strong>
-                    <span className={`badge-state state-${state}`}>
+                    <span className={`status-pill state-${state}`}>
                       {state === 'blocking'
                         ? 'BLOCKING'
                         : state === 'active'
@@ -287,57 +387,139 @@ export const Map: React.FC<MapProps> = ({
                         : 'NORMAL'}
                     </span>
                   </div>
-                  <div>Speed: {v.speed_kmh} km/h</div>
-                  <div>Heading: {v.heading != null ? `${Math.round(v.heading)}°` : '—'}</div>
-                  <div>Last seen: {v.age_s}s ago</div>
-                  {alert && (
-                    <div className="alert-dist-info">
-                      Distance ahead: <strong>{Math.round(alert.distance_m)} m</strong>
+
+                  <div className="popup-data-grid">
+                    <div className="popup-data-item">
+                      <span className="lbl">Speed</span>
+                      <span className="val">{v.speed_kmh.toFixed(1)} km/h</span>
                     </div>
-                  )}
+                    <div className="popup-data-item">
+                      <span className="lbl">Heading</span>
+                      <span className="val">{v.heading != null ? `${Math.round(v.heading)}°` : '—'}</span>
+                    </div>
+                    <div className="popup-data-item">
+                      <span className="lbl">Signal Age</span>
+                      <span className="val">{v.age_s}s ago</span>
+                    </div>
+                    {alert && (
+                      <div className="popup-data-item highlight">
+                        <span className="lbl">Corridor Distance</span>
+                        <span className="val red">{Math.round(alert.distance_m)} m ahead</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Popup>
-            </CircleMarker>
+            </Marker>
           );
         })}
       </MapContainer>
 
-      {/* Floating Map Actions */}
-      <div className="map-floating-bar">
+      {/* Floating Tactical HUD Toolbar */}
+      <div className="map-tactical-toolbar">
+        {/* Camera Follow Toggle */}
         <button
-          className={`floating-btn ${follow ? 'active' : ''}`}
+          className={`hud-btn ${follow ? 'active' : ''}`}
           onClick={onToggleFollow}
-          title="Toggle camera following the ambulance"
+          title="Toggle camera auto-follow on ambulance"
         >
-          {follow ? '🎯 Following Ambulance' : '🧭 Free Camera'}
+          <span className="hud-icon">{follow ? '🎯' : '🧭'}</span>
+          <span>{follow ? 'Locked on Ambulance' : 'Free Camera'}</span>
         </button>
 
+        {/* Fit Bounds */}
         {routeCoords.length > 1 && (
           <button
-            className="floating-btn"
+            className="hud-btn"
             onClick={() => setFitTrigger((n) => n + 1)}
-            title="Fit view to current route"
+            title="Recenter and fit route in viewport"
           >
-            🗺️ Fit Route
+            <span className="hud-icon">🗺️</span>
+            <span>Fit Route</span>
           </button>
         )}
+
+        {/* Tile Switcher */}
+        <div className="hud-pill-group">
+          <button
+            className={`hud-pill ${tileTheme === 'dark' ? 'selected' : ''}`}
+            onClick={() => setTileTheme('dark')}
+            title="Tactical Dark Map"
+          >
+            🌙 Dark
+          </button>
+          <button
+            className={`hud-pill ${tileTheme === 'satellite' ? 'selected' : ''}`}
+            onClick={() => setTileTheme('satellite')}
+            title="Satellite Imagery"
+          >
+            🛰️ Sat
+          </button>
+          <button
+            className={`hud-pill ${tileTheme === 'street' ? 'selected' : ''}`}
+            onClick={() => setTileTheme('street')}
+            title="Street Map"
+          >
+            🗺️ Street
+          </button>
+        </div>
+
+        {/* Vehicle Filter Toggle */}
+        <button
+          className={`hud-btn ${showOnlyAlerted ? 'active' : ''}`}
+          onClick={() => setShowOnlyAlerted(!showOnlyAlerted)}
+          title="Filter vehicles to only those with active corridor alerts"
+        >
+          <span className="hud-icon">🚨</span>
+          <span>{showOnlyAlerted ? 'Showing Alerted Only' : 'All Vehicles'}</span>
+        </button>
       </div>
 
-      {/* Map Legend */}
-      <div className="map-legend">
-        <div className="legend-title">Vehicle Status</div>
-        <div className="legend-item">
-          <span className="dot dot-gray" /> Normal
+      {/* Floating Tactical Legend */}
+      <div className={`map-tactical-legend ${legendCollapsed ? 'collapsed' : ''}`}>
+        <div
+          className="legend-header"
+          onClick={() => setLegendCollapsed(!legendCollapsed)}
+          role="button"
+          tabIndex={0}
+        >
+          <span className="legend-title">Tactical Status Map</span>
+          <span className="legend-toggle">{legendCollapsed ? '▲' : '▼'}</span>
         </div>
-        <div className="legend-item">
-          <span className="dot dot-amber" /> Alerted (Active)
-        </div>
-        <div className="legend-item">
-          <span className="dot dot-red" /> Blocking (&lt; 8 km/h)
-        </div>
-        <div className="legend-item">
-          <span className="dot dot-green" /> Acknowledged
-        </div>
+
+        {!legendCollapsed && (
+          <div className="legend-body">
+            <div className="legend-row">
+              <span className="legend-color-dot amb-dot"></span>
+              <span className="legend-lbl">Ambulance Unit</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-color-dot blocking-dot"></span>
+              <span className="legend-lbl">Blocking (&lt; 8 km/h)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-color-dot alert-dot"></span>
+              <span className="legend-lbl">Corridor Alert (&lt; 1km)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-color-dot ack-dot"></span>
+              <span className="legend-lbl">Moving Aside (Ack)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-color-dot normal-dot"></span>
+              <span className="legend-lbl">Normal Civilian</span>
+            </div>
+            <div className="legend-divider"></div>
+            <div className="legend-row">
+              <span className="corridor-line-preview hazard"></span>
+              <span className="legend-lbl">1km Hazard Zone</span>
+            </div>
+            <div className="legend-row">
+              <span className="corridor-line-preview corridor"></span>
+              <span className="legend-lbl">35m Lateral Corridor</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
