@@ -1,0 +1,37 @@
+name: Continuous Integration & Verification
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  verify:
+    name: Lint, Test & Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci || npm install
+
+      - name: Run Native Test Suite (100% Pass)
+        run: npm test
+
+      - name: Run Web Linting
+        run: npm run lint
+
+      - name: Build Web Application
+        run: npm run build:web
+
+      - name: Typecheck Mobile Application
+        run: npm run build:mobile

@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-ssr
+.vercel
+.expo
+package-lock.json
+*.log
+.system_generated

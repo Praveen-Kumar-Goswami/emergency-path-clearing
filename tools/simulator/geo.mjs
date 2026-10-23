@@ -1,10 +1,31 @@
+/**
+ * @fileoverview Pure mathematical geospatial helper utilities for spherical Earth calculations,
+ * great-circle distances, bearings, forward projections, and polyline linear referencing.
+ */
+
+/** Earth radius in meters according to WGS84 spherical approximation */
 const EARTH_RADIUS_M = 6371000;
 
+/**
+ * Converts degrees to radians.
+ * @param {number} deg Angle in degrees
+ * @returns {number} Angle in radians
+ */
 export const toRad = (deg) => (deg * Math.PI) / 180;
+
+/**
+ * Converts radians to degrees.
+ * @param {number} rad Angle in radians
+ * @returns {number} Angle in degrees
+ */
 export const toDeg = (rad) => (rad * 180) / Math.PI;
 
 /**
- * Great-circle distance between two [lat, lng] points in meters
+ * Calculates the great-circle Haversine distance between two [lat, lng] coordinates.
+ *
+ * @param {[number, number]} p1 First coordinate point [lat, lng]
+ * @param {[number, number]} p2 Second coordinate point [lat, lng]
+ * @returns {number} Distance in meters
  */
 export const haversineDistance = (p1, p2) => {
   const [lat1, lon1] = p1;
@@ -22,7 +43,11 @@ export const haversineDistance = (p1, p2) => {
 };
 
 /**
- * Initial bearing from p1 to p2 in degrees [0, 360)
+ * Calculates the forward initial bearing from point p1 to point p2.
+ *
+ * @param {[number, number]} p1 Origin coordinate [lat, lng]
+ * @param {[number, number]} p2 Destination coordinate [lat, lng]
+ * @returns {number} Compass bearing in degrees normalized to [0, 360)
  */
 export const bearing = (p1, p2) => {
   const [lat1, lon1] = p1;
@@ -38,7 +63,12 @@ export const bearing = (p1, p2) => {
 };
 
 /**
- * Destination point given start point, distance in meters, and bearing in degrees
+ * Computes destination coordinate given a start point, travel distance, and bearing.
+ *
+ * @param {[number, number]} start Starting coordinate [lat, lng]
+ * @param {number} distanceM Forward distance in meters
+ * @param {number} brngDeg Heading in degrees [0, 360)
+ * @returns {[number, number]} Projected coordinate [lat, lng]
  */
 export const destinationPoint = (start, distanceM, brngDeg) => {
   const [lat1, lon1] = start;
@@ -59,7 +89,10 @@ export const destinationPoint = (start, distanceM, brngDeg) => {
 };
 
 /**
- * Total length of polyline in meters
+ * Computes the total cumulative length of a polyline in meters.
+ *
+ * @param {[number, number][]} polyline Array of [lat, lng] points
+ * @returns {number} Total distance in meters
  */
 export const polylineLength = (polyline) => {
   if (polyline.length < 2) return 0;
@@ -71,7 +104,11 @@ export const polylineLength = (polyline) => {
 };
 
 /**
- * Point and heading along polyline at distance in meters
+ * Computes exact coordinate and tangent bearing at a given meter offset along a polyline.
+ *
+ * @param {[number, number][]} polyline Array of [lat, lng] points
+ * @param {number} meters Distance from polyline start in meters
+ * @returns {{ point: [number, number], heading: number }} Interpolated point and road heading
  */
 export const pointAtDistance = (polyline, meters) => {
   if (polyline.length === 0) return { point: [0, 0], heading: 0 };
@@ -98,7 +135,12 @@ export const pointAtDistance = (polyline, meters) => {
 };
 
 /**
- * Nearest distance along route and lateral distance
+ * Computes linear referencing: projects a test point onto a polyline to determine
+ * distance along the route and perpendicular lateral offset.
+ *
+ * @param {[number, number][]} polyline Array of [lat, lng] points representing route centerline
+ * @param {[number, number]} point Test coordinate [lat, lng]
+ * @returns {{ distanceAlongM: number, lateralM: number }} Nearest distance along route and lateral offset
  */
 export const nearestDistanceAlongRoute = (polyline, point) => {
   if (polyline.length < 2) {
@@ -143,7 +185,12 @@ export const nearestDistanceAlongRoute = (polyline, point) => {
 };
 
 /**
- * Point along route with perpendicular lateral offset
+ * Projects a point along the route with a perpendicular lateral displacement.
+ *
+ * @param {[number, number][]} polyline Array of [lat, lng] points
+ * @param {number} distanceAlongM Distance along centerline in meters
+ * @param {number} lateralOffsetM Lateral offset in meters (+90° right)
+ * @returns {{ point: [number, number], heading: number }} Displaced point and road heading
  */
 export const lateralOffsetPoint = (polyline, distanceAlongM, lateralOffsetM) => {
   const { point, heading } = pointAtDistance(polyline, distanceAlongM);

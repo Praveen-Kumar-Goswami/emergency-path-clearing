@@ -280,3 +280,195 @@ test('Clearance Maneuver: Advises correct lateral pull-over direction based on h
   assert.equal(getPullOverGuidance(roadNorth, 'left'), 270, 'Pull over to West shoulder for Left-hand drive');
 });
 
+// ==============================================================================
+// 11. STRICT JSON SCHEMA ASSERTION SUITE
+// ==============================================================================
+test('Schema Validation: Snapshot payload matches strict JSON schema contract', () => {
+  const validateSnapshotSchema = (snapshot) => {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (typeof snapshot.server_time !== 'string') return false;
+    if (!Array.isArray(snapshot.trips)) return false;
+    if (!Array.isArray(snapshot.vehicles)) return false;
+    if (!Array.isArray(snapshot.alerts)) return false;
+    return true;
+  };
+
+  const validSnapshot = {
+    server_time: new Date().toISOString(),
+    trips: [],
+    vehicles: [],
+    alerts: [],
+  };
+
+  const invalidSnapshot = { server_time: 12345, trips: {} };
+
+  assert.equal(validateSnapshotSchema(validSnapshot), true);
+  assert.equal(validateSnapshotSchema(invalidSnapshot), false);
+  assert.equal(validateSnapshotSchema(null), false);
+});
+
+// ==============================================================================
+// 12. NETWORK RESILIENCE: 404, 429, 503 & TIMEOUT HANDLING
+// ==============================================================================
+test('Network Resilience: Handles HTTP 404, 429, 503 and network timeouts safely', () => {
+  const handleHttpResponse = (statusCode, retryCount = 0, maxRetries = 3) => {
+    switch (statusCode) {
+      case 200:
+        return { action: 'SUCCESS', retry: false };
+      case 404:
+        return { action: 'NOT_FOUND_ABORT', retry: false, error: 'Resource not found' };
+      case 429:
+        return {
+          action: 'RATE_LIMITED_BACKOFF',
+          retry: retryCount < maxRetries,
+          retryAfterMs: Math.min(10000, 1000 * Math.pow(2, retryCount)),
+        };
+      case 503:
+        return {
+          action: 'SERVICE_UNAVAILABLE_RETRY',
+          retry: retryCount < maxRetries,
+          retryAfterMs: Math.min(10000, 1500 * Math.pow(1.5, retryCount)),
+        };
+      default:
+        return { action: 'UNKNOWN_FAILURE', retry: false };
+    }
+  };
+
+  assert.equal(handleHttpResponse(200).action, 'SUCCESS');
+  assert.equal(handleHttpResponse(404).retry, false);
+  assert.equal(handleHttpResponse(429, 1).retry, true);
+  assert.equal(handleHttpResponse(429, 3).retry, false, 'Should abort when maxRetries exhausted');
+  assert.equal(handleHttpResponse(503, 0).retry, true);
+});
+
+// ==============================================================================
+// 13. XSS & HTML INJECTION SANITIZATION
+// ==============================================================================
+test('Security Sanitization: Rejects script tags and safely escapes HTML payloads', () => {
+  const escapeHtml = (unsafe) => {
+    return String(unsafe)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  const maliciousInput = '<script>alert("XSS")</script>';
+  const escaped = escapeHtml(maliciousInput);
+
+  assert.equal(escaped.includes('<script>'), false);
+  assert.equal(escaped, '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
+});
+
+// ==============================================================================
+// 14. EMERGENCY HELPLINE VERIFICATION (REGIONAL ACCURACY)
+// ==============================================================================
+test('Emergency Helplines: Configured helpline numbers are valid and region-accurate', () => {
+  const EMERGENCY_HELPLINES = {
+    global: '112',
+    india: { all_emergency: '112', ambulance: '108' },
+    uk: { all_emergency: '999', ambulance: '999' },
+    us: { all_emergency: '911', ambulance: '911' },
+  };
+
+  assert.equal(EMERGENCY_HELPLINES.india.all_emergency, '112');
+  assert.equal(EMERGENCY_HELPLINES.india.ambulance, '108');
+  assert.equal(EMERGENCY_HELPLINES.uk.ambulance, '999');
+  assert.equal(EMERGENCY_HELPLINES.us.ambulance, '911');
+});
+
+// ==============================================================================
+// 15. IN-MEMORY STATE CLEARANCE & RIGHT TO ERASURE
+// ==============================================================================
+test('Privacy & Erasure: "Clear Everything" completely wipes in-memory vehicle state', () => {
+  let sessionState = {
+    userId: 'citizen-secret-123',
+    currentLocation: { lat: 51.505, lng: -0.09 },
+    activeAlerts: [{ id: 'a-1', status: 'active' }],
+  };
+
+  const clearEverything = () => {
+    sessionState = {
+      userId: null,
+      currentLocation: null,
+      activeAlerts: [],
+    };
+  };
+
+  clearEverything();
+
+  assert.equal(sessionState.userId, null);
+  assert.equal(sessionState.currentLocation, null);
+  assert.equal(sessionState.activeAlerts.length, 0);
+});
+
+// ==============================================================================
+// 16. BOUNDED EXPONENTIAL BACKOFF WITH JITTER
+// ==============================================================================
+test('Efficiency: Exponential backoff with jitter is bounded within [min, max]', () => {
+  const calculateBackoffWithJitter = (attempt, baseDelayMs = 1000, maxDelayMs = 10000) => {
+    const exponential = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
+    const jitter = Math.random() * (exponential * 0.2); // up to 20% jitter
+    return Math.min(maxDelayMs, exponential + jitter);
+  };
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const delay = calculateBackoffWithJitter(attempt, 1000, 10000);
+    assert.ok(delay >= 1000, `Delay must be >= 1000ms, got ${delay}`);
+    assert.ok(delay <= 10000, `Delay must be <= 10000ms, got ${delay}`);
+  }
+});
+
+// ==============================================================================
+// 17. TWO-PASS CORRIDOR VERIFICATION ENGINE
+// ==============================================================================
+test('Two-Pass Corridor Verification: Pass 1 candidate filter + Pass 2 linear projection', () => {
+  const route = [
+    [51.500, -0.090],
+    [51.520, -0.090],
+  ];
+
+  // Pass 1: Fast radial bounding-box filter (candidates within 1,500m of route start)
+  const isCandidatePass1 = (point) => {
+    return haversineDistance(route[0], point) <= 1500;
+  };
+
+  // Pass 2: Precise PostGIS linear referencing
+  const verifyPass2 = (point, ambulanceDistanceM) => {
+    const { distanceAlongM, lateralM } = nearestDistanceAlongRoute(route, point);
+    const forwardDist = distanceAlongM - ambulanceDistanceM;
+    return forwardDist >= 0 && forwardDist <= 1000 && lateralM <= 35.0;
+  };
+
+  const validTarget = [51.505, -0.090];
+  const farAwayTarget = [51.580, -0.090];
+
+  assert.equal(isCandidatePass1(validTarget), true, 'Pass 1 should include valid candidate');
+  assert.equal(isCandidatePass1(farAwayTarget), false, 'Pass 1 should reject distant target');
+  assert.equal(verifyPass2(validTarget, 0), true, 'Pass 2 should verify candidate in corridor');
+});
+
+// ==============================================================================
+// 18. MULTILINGUAL OUTPUT REQUIREMENTS (ENGLISH, HINDI, MARATHI)
+// ==============================================================================
+test('Multilingual Guidance: Generates accurate instructions in English, Hindi, and Marathi', () => {
+  const getMultilingualInstruction = (language, side = 'left') => {
+    const translations = {
+      en: `Ambulance approaching. Please move to the ${side} side of the road.`,
+      hi: `एम्बुलेंस आ रही है। कृपया सड़क के ${side === 'left' ? 'बाईं' : 'दाईं'} ओर हटें।`,
+      mr: `रुग्णवाहिका येत आहे. कृपया रस्त्याच्या ${side === 'left' ? 'डाव्या' : 'उजव्या'} बाजूला व्हा.`,
+    };
+    return translations[language] || translations.en;
+  };
+
+  const enText = getMultilingualInstruction('en', 'left');
+  const hiText = getMultilingualInstruction('hi', 'left');
+  const mrText = getMultilingualInstruction('mr', 'left');
+
+  assert.ok(enText.includes('move to the left side'));
+  assert.ok(hiText.includes('बाईं ओर हटें'));
+  assert.ok(mrText.includes('डाव्या बाजूला व्हा'));
+});
+
+

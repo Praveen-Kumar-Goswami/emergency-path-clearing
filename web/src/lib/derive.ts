@@ -1,16 +1,38 @@
+/**
+ * @fileoverview Pure functional state transformers and metric derivations
+ * for the Emergency Path Clearing dispatch dashboard.
+ */
+
 import type { Snapshot, Trip, AlertRow, VehicleVisualState } from './types';
 
+/**
+ * Filters a list of trips down to only active emergency runs.
+ *
+ * @param trips Array of Trip objects
+ * @returns Array containing only trips with status === 'active'
+ */
 export const activeTrips = (trips: Trip[]): Trip[] => {
   return trips.filter((t) => t.status === 'active');
 };
 
+/**
+ * Filters a list of trips down to historical or inactive runs.
+ *
+ * @param trips Array of Trip objects
+ * @returns Array containing trips with status !== 'active'
+ */
 export const recentTrips = (trips: Trip[]): Trip[] => {
   return trips.filter((t) => t.status !== 'active');
 };
 
+/**
+ * Builds an efficient lookup map of the latest alert row per citizen user ID.
+ *
+ * @param alerts Array of AlertRow records sorted by created_at DESC
+ * @returns Map mapping user_id to their newest AlertRow
+ */
 export const getLatestAlertPerUser = (alerts: AlertRow[]): Map<string, AlertRow> => {
   const map = new Map<string, AlertRow>();
-  // Alerts are ordered by created_at DESC from RPC
   alerts.forEach((alert) => {
     if (!map.has(alert.user_id)) {
       map.set(alert.user_id, alert);
@@ -19,6 +41,13 @@ export const getLatestAlertPerUser = (alerts: AlertRow[]): Map<string, AlertRow>
   return map;
 };
 
+/**
+ * Derives the visual alert state token for a vehicle based on its latest alert record.
+ *
+ * @param userId Unique user identifier
+ * @param userAlertMap Pre-computed map from getLatestAlertPerUser
+ * @returns Visual alert state: 'blocking' | 'active' | 'acknowledged' | 'none'
+ */
 export const deriveVehicleAlertState = (
   userId: string,
   userAlertMap: Map<string, AlertRow>
@@ -33,6 +62,13 @@ export const deriveVehicleAlertState = (
   return 'none';
 };
 
+/**
+ * Aggregates high-level dispatch telemetry counters from the current snapshot.
+ *
+ * @param snapshot Complete telemetry snapshot from dashboard_snapshot RPC
+ * @param selectedTripId Optional active trip ID to scope metrics to, or null for all trips
+ * @returns Object with counts for vehiclesOnline, alertsActive, blocking, acknowledged
+ */
 export const deriveMetrics = (snapshot: Snapshot | null, selectedTripId: string | null) => {
   if (!snapshot) {
     return {
@@ -72,7 +108,10 @@ export const deriveMetrics = (snapshot: Snapshot | null, selectedTripId: string 
 };
 
 /**
- * Converts GeoJSON coordinates [[lng, lat], ...] to Leaflet [[lat, lng], ...]
+ * Converts GeoJSON coordinates `[[longitude, latitude], ...]` to Leaflet format `[[latitude, longitude], ...]`.
+ *
+ * @param coords Array of [lng, lat] coordinate pairs
+ * @returns Array of [lat, lng] pairs for Leaflet map polylines
  */
 export const geoJsonToLeafletCoords = (coords: [number, number][]): [number, number][] => {
   return coords.map(([lng, lat]) => [lat, lng]);
