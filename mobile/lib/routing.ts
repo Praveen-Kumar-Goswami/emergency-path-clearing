@@ -27,7 +27,7 @@ export const geocode = async (text: string): Promise<GeocodeResult[]> => {
 
   if (ORS_API_KEY && ORS_API_KEY !== 'your-openrouteservice-api-key') {
     try {
-      const url = `https://api.openrouteservice.org/geocode/search?api_key=${ORS_API_KEY}&text=${query}&size=5`;
+      const url = `https://api.openrouteservice.org/geocode/search?api_key=${encodeURIComponent(ORS_API_KEY)}&text=${query}&size=5`;
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
