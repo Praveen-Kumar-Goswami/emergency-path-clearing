@@ -16,14 +16,15 @@ import { useAuth } from '../lib/auth';
 
 export default function EntryScreen() {
   const router = useRouter();
-  const { session, role, loading, error: authError, clearError, signInCitizen, signInStaff, signOut } = useAuth();
+  const { session, role, loading, error: authError, clearError, signInCitizen, signInStaff, registerStaff, signOut } = useAuth();
 
   // Supabase connection check state (Step 1 requirement)
   const [connStatus, setConnStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [connError, setConnError] = useState<string | null>(null);
 
-  // Ambulance login form state
+  // Ambulance login & registration form state
   const [showAmbulanceLogin, setShowAmbulanceLogin] = useState(false);
+  const [crewAuthMode, setCrewAuthMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -78,11 +79,20 @@ export default function EntryScreen() {
       setFormError('Please enter both email and password.');
       return;
     }
+    if (crewAuthMode === 'register' && password.length < 8) {
+      setFormError('Password must be at least 8 characters.');
+      return;
+    }
     try {
       setFormError(null);
       clearError();
       setSubmitting(true);
-      const userRole = await signInStaff(email, password);
+      let userRole: any;
+      if (crewAuthMode === 'register') {
+        userRole = await registerStaff(email, password, 'ambulance');
+      } else {
+        userRole = await signInStaff(email, password);
+      }
       if (userRole === 'ambulance') {
         router.replace('/(ambulance)');
       }
@@ -207,25 +217,58 @@ export default function EntryScreen() {
           ) : (
             <View style={styles.loginFormCard}>
               <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>🚑 Crew Sign In</Text>
+                <Text style={styles.formTitle}>
+                  {crewAuthMode === 'login' ? '🚑 Crew Sign In' : '🚑 Register Crew Unit'}
+                </Text>
                 <TouchableOpacity onPress={() => setShowAmbulanceLogin(false)}>
                   <Text style={styles.closeBtn}>Cancel</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.inputLabel}>Email Address</Text>
+              {/* Segmented Auth Mode Switcher */}
+              <View style={styles.authModeToggle}>
+                <TouchableOpacity
+                  style={[styles.authModeBtn, crewAuthMode === 'login' && styles.authModeBtnActive]}
+                  onPress={() => {
+                    setCrewAuthMode('login');
+                    setFormError(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.authModeBtnText, crewAuthMode === 'login' && styles.authModeBtnTextActive]}>
+                    Sign In
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.authModeBtn, crewAuthMode === 'register' && styles.authModeBtnActive]}
+                  onPress={() => {
+                    setCrewAuthMode('register');
+                    setFormError(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.authModeBtnText, crewAuthMode === 'register' && styles.authModeBtnTextActive]}>
+                    New Account
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Crew Email Address</Text>
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="ambulance1@test.com"
+                placeholder="ambulance@hospital.org"
                 placeholderTextColor="#64748b"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
 
-              <Text style={styles.inputLabel}>Password</Text>
+              <Text style={styles.inputLabel}>
+                {crewAuthMode === 'register' ? 'Password (min 8 characters)' : 'Password'}
+              </Text>
               <TextInput
                 style={styles.input}
                 value={password}
@@ -245,7 +288,9 @@ export default function EntryScreen() {
                 {submitting ? (
                   <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Sign In as Crew</Text>
+                  <Text style={styles.submitBtnText}>
+                    {crewAuthMode === 'login' ? 'Sign In as Crew' : 'Register Ambulance Unit'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -469,6 +514,36 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 13,
     fontWeight: '600',
+  },
+  authModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    padding: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  authModeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authModeBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  authModeBtnText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  authModeBtnTextActive: {
+    color: '#f87171',
+    fontWeight: '700',
   },
   inputLabel: {
     color: '#cbd5e1',

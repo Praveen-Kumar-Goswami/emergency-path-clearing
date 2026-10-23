@@ -1,10 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from './lib/supabase';
 import { useDashboard } from './hooks/useDashboard';
-import { Header } from './components/Header';
+import { Header, type DashboardView } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Map } from './components/Map';
 import { Login } from './components/Login';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { HowItWorksDashboard } from './components/HowItWorksDashboard';
+import { FleetDirectory } from './components/FleetDirectory';
 import { deriveMetrics, activeTrips } from './lib/derive';
 import type { Trip } from './lib/types';
 
@@ -12,6 +15,9 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [isDispatcher, setIsDispatcher] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+
+  // Active dashboard view tab
+  const [currentView, setCurrentView] = useState<DashboardView>('map');
 
   // Selected trip for map tracking
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -132,9 +138,9 @@ export default function App() {
   }, [snapshot, selectedTripId]);
 
   const handleFocusVehicle = (pos: [number, number]) => {
+    setCurrentView('map');
     setFollowAmbulance(false);
     setFocusedVehiclePos(pos);
-    // Clear focus after small pan delay
     setTimeout(() => setFocusedVehiclePos(null), 1000);
   };
 
@@ -168,6 +174,12 @@ export default function App() {
           )}
         </div>
 
+        <div className="auth-hero">
+          <span className="auth-hero-icon">🚨</span>
+          <h1>Emergency Path Clearing</h1>
+          <p>Real-Time Spatial Corridor Warning & Fleet Dispatch System</p>
+        </div>
+
         <Login onSuccess={() => verifySession()} />
       </div>
     );
@@ -178,34 +190,69 @@ export default function App() {
       <Header
         connection={connection}
         lastUpdated={lastUpdated}
+        currentView={currentView}
+        onSelectView={setCurrentView}
         onSignOut={handleSignOut}
       />
 
-      <main className="dashboard-body">
-        <div className="map-panel">
-          <Map
-            selectedTrip={selectedTrip}
+      {/* View 1: Live Interactive Fleet Map */}
+      {currentView === 'map' && (
+        <main className="dashboard-body">
+          <div className="map-panel">
+            <Map
+              selectedTrip={selectedTrip}
+              vehicles={snapshot?.vehicles || []}
+              alerts={snapshot?.alerts || []}
+              follow={followAmbulance}
+              onToggleFollow={() => setFollowAmbulance(!followAmbulance)}
+              focusedVehiclePos={focusedVehiclePos}
+            />
+          </div>
+
+          <Sidebar
+            trips={snapshot?.trips || []}
             vehicles={snapshot?.vehicles || []}
             alerts={snapshot?.alerts || []}
-            follow={followAmbulance}
-            onToggleFollow={() => setFollowAmbulance(!followAmbulance)}
-            focusedVehiclePos={focusedVehiclePos}
+            selectedTripId={selectedTripId}
+            onSelectTrip={(id) => {
+              setSelectedTripId(id);
+              setFollowAmbulance(true);
+            }}
+            onFocusVehicle={handleFocusVehicle}
+            metrics={metrics}
           />
-        </div>
+        </main>
+      )}
 
-        <Sidebar
-          trips={snapshot?.trips || []}
-          vehicles={snapshot?.vehicles || []}
-          alerts={snapshot?.alerts || []}
-          selectedTripId={selectedTripId}
-          onSelectTrip={(id) => {
-            setSelectedTripId(id);
-            setFollowAmbulance(true);
-          }}
-          onFocusVehicle={handleFocusVehicle}
-          metrics={metrics}
-        />
-      </main>
+      {/* View 2: Corridor Analytics & Congestion Dashboard */}
+      {currentView === 'analytics' && (
+        <main className="dashboard-body view-scrollable">
+          <AnalyticsDashboard
+            snapshot={snapshot}
+            onSelectTrip={(tripId) => {
+              setSelectedTripId(tripId);
+              setCurrentView('map');
+            }}
+          />
+        </main>
+      )}
+
+      {/* View 3: How It Works & Interactive PostGIS Lab */}
+      {currentView === 'how-it-works' && (
+        <main className="dashboard-body view-scrollable">
+          <HowItWorksDashboard snapshot={snapshot} />
+        </main>
+      )}
+
+      {/* View 4: Fleet & Personnel Directory */}
+      {currentView === 'fleet' && (
+        <main className="dashboard-body view-scrollable">
+          <FleetDirectory
+            snapshot={snapshot}
+            onFocusVehicle={handleFocusVehicle}
+          />
+        </main>
+      )}
     </div>
   );
 }

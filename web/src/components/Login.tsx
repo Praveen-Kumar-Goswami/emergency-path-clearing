@@ -98,7 +98,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
       if (!data.user) throw new Error('Registration failed — no user returned.');
 
       // Upsert profile with chosen role
-      const { error: profileErr } = await supabase.from('profiles').upsert({
+      const { error: profileErr } = await (supabase.from('profiles') as any).upsert({
         id: data.user.id,
         role,
         full_name: fullName.trim(),

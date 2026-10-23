@@ -1,9 +1,9 @@
 import React from 'react';
-import type { DashboardSnapshot, Trip, AlertRow, Vehicle } from '../lib/types';
+import type { Snapshot, Trip, AlertRow, Vehicle } from '../lib/types';
 import { activeTrips, recentTrips } from '../lib/derive';
 
 interface AnalyticsDashboardProps {
-  snapshot: DashboardSnapshot | null;
+  snapshot: Snapshot | null;
   onSelectTrip: (tripId: string) => void;
 }
 
@@ -11,31 +11,28 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   snapshot,
   onSelectTrip,
 }) => {
-  const trips = snapshot?.trips || [];
-  const vehicles = snapshot?.vehicles || [];
-  const alerts = snapshot?.alerts || [];
+  const trips: Trip[] = snapshot?.trips || [];
+  const vehicles: Vehicle[] = snapshot?.vehicles || [];
+  const alerts: AlertRow[] = snapshot?.alerts || [];
 
-  const active = activeTrips(trips);
-  const recent = recentTrips(trips);
+  const active: Trip[] = activeTrips(trips);
+  const recent: Trip[] = recentTrips(trips);
 
   // Stats calculation
   const totalAlerts = alerts.length;
-  const activeAlerts = alerts.filter((a) => a.status === 'active').length;
-  const acknowledgedAlerts = alerts.filter((a) => a.status === 'acknowledged').length;
-  const blockingAlerts = alerts.filter((a) => a.is_blocking && (a.status === 'active' || a.status === 'acknowledged')).length;
-  const clearedAlerts = alerts.filter((a) => a.status === 'cleared').length;
+  const activeAlerts = alerts.filter((a: AlertRow) => a.status === 'active').length;
+  const acknowledgedAlerts = alerts.filter((a: AlertRow) => a.status === 'acknowledged').length;
+  const blockingAlerts = alerts.filter((a: AlertRow) => a.blocking && (a.status === 'active' || a.status === 'acknowledged')).length;
+  const clearedAlerts = alerts.filter((a: AlertRow) => a.status === 'cleared').length;
 
   const clearanceRate = totalAlerts > 0
     ? Math.round(((clearedAlerts + acknowledgedAlerts) / totalAlerts) * 100)
     : 100;
 
   // Speed brackets
-  const stoppedCount = vehicles.filter((v) => (v.speed_mps || 0) * 3.6 < 8).length;
-  const slowingCount = vehicles.filter((v) => {
-    const kmh = (v.speed_mps || 0) * 3.6;
-    return kmh >= 8 && kmh < 30;
-  }).length;
-  const freeFlowCount = vehicles.filter((v) => (v.speed_mps || 0) * 3.6 >= 30).length;
+  const stoppedCount = vehicles.filter((v: Vehicle) => v.speed_kmh < 8).length;
+  const slowingCount = vehicles.filter((v: Vehicle) => v.speed_kmh >= 8 && v.speed_kmh < 30).length;
+  const freeFlowCount = vehicles.filter((v: Vehicle) => v.speed_kmh >= 30).length;
 
   // Format time
   const formatTime = (iso: string) => {
@@ -54,7 +51,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <p className="analytics-sub">Real-time performance metrics computed across active emergency corridors</p>
         </div>
         <div className="analytics-quick-badge">
-          <span>Target Response Window: <strong>&lt; 60 seconds</strong></span>
+          <span>Target Warning Lead Time: <strong>&lt; 60 seconds</strong></span>
         </div>
       </div>
 
@@ -169,9 +166,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
             )}
 
-            {active.map((trip) => {
-              const tripAlerts = alerts.filter((a) => a.trip_id === trip.id);
-              const tripBlocking = tripAlerts.filter((a) => a.is_blocking).length;
+            {active.map((trip: Trip) => {
+              const tripAlerts = alerts.filter((a: AlertRow) => a.trip_id === trip.id);
+              const tripBlocking = tripAlerts.filter((a: AlertRow) => a.blocking).length;
               return (
                 <div
                   key={trip.id}
@@ -184,12 +181,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   </div>
                   <div className="trip-audit-metrics">
                     <div className="audit-metric">
-                      <span className="metric-tag">Started</span>
-                      <span className="metric-val">{formatTime(trip.started_at)}</span>
+                      <span className="metric-tag">Created</span>
+                      <span className="metric-val">{formatTime(trip.created_at)}</span>
                     </div>
                     <div className="audit-metric">
-                      <span className="metric-tag">Route Length</span>
-                      <span className="metric-val">{trip.route_distance_m ? `${(trip.route_distance_m / 1000).toFixed(1)} km` : 'Calculating'}</span>
+                      <span className="metric-tag">Last Tick</span>
+                      <span className="metric-val">{formatTime(trip.last_tick_at)}</span>
                     </div>
                     <div className="audit-metric">
                       <span className="metric-tag">Corridor Alerts</span>
@@ -204,7 +201,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               );
             })}
 
-            {recent.slice(0, 5).map((trip) => (
+            {recent.slice(0, 5).map((trip: Trip) => (
               <div key={trip.id} className="trip-audit-item closed-audit">
                 <div className="trip-audit-header">
                   <span className="trip-code">🏁 Unit {trip.id.slice(0, 8)}</span>
@@ -214,12 +211,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </div>
                 <div className="trip-audit-metrics">
                   <div className="audit-metric">
-                    <span className="metric-tag">Started</span>
-                    <span className="metric-val">{formatTime(trip.started_at)}</span>
+                    <span className="metric-tag">Created</span>
+                    <span className="metric-val">{formatTime(trip.created_at)}</span>
                   </div>
                   <div className="audit-metric">
-                    <span className="metric-tag">Ended</span>
-                    <span className="metric-val">{trip.ended_at ? formatTime(trip.ended_at) : 'N/A'}</span>
+                    <span className="metric-tag">Last Seen</span>
+                    <span className="metric-val">{formatTime(trip.last_tick_at)}</span>
                   </div>
                 </div>
               </div>
@@ -255,8 +252,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   </td>
                 </tr>
               ) : (
-                alerts.slice(0, 15).map((alert) => (
-                  <tr key={alert.id} className={alert.is_blocking ? 'row-blocking' : ''}>
+                alerts.slice(0, 15).map((alert: AlertRow) => (
+                  <tr key={alert.id} className={alert.blocking ? 'row-blocking' : ''}>
                     <td className="mono">{formatTime(alert.created_at)}</td>
                     <td className="mono">{alert.user_id.slice(0, 8)}</td>
                     <td className="mono">{alert.trip_id.slice(0, 8)}</td>
@@ -268,7 +265,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       )}
                     </td>
                     <td>
-                      {alert.is_blocking ? (
+                      {alert.blocking ? (
                         <span className="chip chip-blocking">🛑 BLOCKING</span>
                       ) : (
                         <span className="chip chip-active">⚠️ ON ROUTE</span>

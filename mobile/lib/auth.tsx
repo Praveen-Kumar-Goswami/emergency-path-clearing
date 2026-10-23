@@ -13,6 +13,7 @@ interface AuthContextType {
   clearError: () => void;
   signInCitizen: () => Promise<void>;
   signInStaff: (email: string, password: string) => Promise<UserRole>;
+  registerStaff: (email: string, password: string, newRole?: 'ambulance') => Promise<UserRole>;
   signOut: () => Promise<void>;
 }
 
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   clearError: () => {},
   signInCitizen: async () => {},
   signInStaff: async () => null,
+  registerStaff: async () => null,
   signOut: async () => {},
 });
 
@@ -181,6 +183,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const registerStaff = async (email: string, password: string, newRole: 'ambulance' = 'ambulance'): Promise<UserRole> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: signUpErr } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+
+      if (signUpErr) throw signUpErr;
+      if (!data.user) throw new Error('Registration succeeded but user was null.');
+
+      const { error: profileErr } = await (supabase.from('profiles') as any).upsert({
+        id: data.user.id,
+        role: newRole,
+      });
+      if (profileErr) throw profileErr;
+
+      setRole(newRole);
+      setSession(data.session);
+      return newRole;
+    } catch (err: any) {
+      const mapped = mapAuthError(err);
+      setError(mapped);
+      throw new Error(mapped);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     try {
       setLoading(true);
@@ -206,6 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearError,
         signInCitizen,
         signInStaff,
+        registerStaff,
         signOut,
       }}
     >
