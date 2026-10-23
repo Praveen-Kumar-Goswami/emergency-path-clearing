@@ -14,8 +14,8 @@ export const useDashboard = (enabled: boolean = true) => {
 
   const inFlightRef = useRef<boolean>(false);
   const backoffDelayRef = useRef<number>(2000);
-  const pollTimerRef = useRef<any>(null);
-  const debounceTimerRef = useRef<any>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const consecutiveFailuresRef = useRef<number>(0);
 
   const fetchSnapshot = useCallback(async () => {
@@ -39,17 +39,18 @@ export const useDashboard = (enabled: boolean = true) => {
         consecutiveFailuresRef.current = 0;
         backoffDelayRef.current = 2000;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       consecutiveFailuresRef.current++;
-      const msg = err.message || 'Error loading dashboard snapshot';
+      const msg = err instanceof Error ? err.message : 'Error loading dashboard snapshot';
       setError(msg);
 
       if (consecutiveFailuresRef.current >= 2) {
         setConnection('reconnecting');
       }
 
-      // Backoff up to 10 seconds
-      backoffDelayRef.current = Math.min(10000, backoffDelayRef.current * 1.5);
+      // Backoff up to 10 seconds with 20% random jitter
+      const jitter = Math.random() * (backoffDelayRef.current * 0.2);
+      backoffDelayRef.current = Math.min(10000, backoffDelayRef.current * 1.5 + jitter);
     } finally {
       inFlightRef.current = false;
     }

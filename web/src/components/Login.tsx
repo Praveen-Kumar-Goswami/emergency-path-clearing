@@ -65,8 +65,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
       }
 
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Login failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed.');
     } finally {
       setLoading(false);
     }
@@ -122,8 +122,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
       if (role === 'dispatcher') {
         setTimeout(() => switchMode('login'), 2000);
       }
-    } catch (err: any) {
-      setError(err.message || 'Registration failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
       setLoading(false);
     }

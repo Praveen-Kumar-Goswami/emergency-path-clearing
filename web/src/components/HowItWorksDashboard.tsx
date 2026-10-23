@@ -74,8 +74,8 @@ export const HowItWorksDashboard: React.FC<HowItWorksDashboardProps> = ({ snapsh
       } else {
         addLog(`✅ Location reported via PostGIS ST_SetSRID. Check Map & Sidebar!`);
       }
-    } catch (e: any) {
-      addLog(`❌ Simulation failed: ${e.message}`);
+    } catch (e: unknown) {
+      addLog(`❌ Simulation failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsSimulating(false);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { useDashboard } from './hooks/useDashboard';
 import { Header, type DashboardView } from './components/Header';
@@ -12,7 +13,7 @@ import { deriveMetrics, activeTrips } from './lib/derive';
 import type { Trip } from './lib/types';
 
 export default function App() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isDispatcher, setIsDispatcher] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
@@ -39,9 +40,9 @@ export default function App() {
         setConnStatus('connected');
         setConnError(null);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setConnStatus('error');
-      setConnError(e.message || 'Failed to reach Supabase backend.');
+      setConnError(e instanceof Error ? e.message : 'Failed to reach Supabase backend.');
     }
   };
 
@@ -92,10 +93,10 @@ export default function App() {
             setConnError(null);
           }
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!ignore) {
           setConnStatus('error');
-          setConnError(e.message || 'Failed to reach Supabase backend.');
+          setConnError(e instanceof Error ? e.message : 'Failed to reach Supabase backend.');
         }
       }
 
