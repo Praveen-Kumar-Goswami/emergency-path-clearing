@@ -52,8 +52,9 @@ export default function AmbulanceSetupScreen() {
     (async () => {
       try {
         const { data, error } = await supabase.rpc('my_active_trip');
-        if (!error && data && data.id) {
-          setActiveTrip(data);
+        const trip = data as { id: string; route: any } | null;
+        if (!error && trip && trip.id) {
+          setActiveTrip(trip);
         }
       } catch (e) {
         console.warn('Error checking my_active_trip:', e);

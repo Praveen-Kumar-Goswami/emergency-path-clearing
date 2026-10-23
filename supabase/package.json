@@ -1,0 +1,17 @@
+{
+  "name": "emergency-path-clearing-supabase",
+  "version": "1.0.0",
+  "description": "Supabase migrations, configuration, database types, and verification suite for Emergency Path Clearing",
+  "type": "module",
+  "scripts": {
+    "test:connection": "node test_connection.mjs",
+    "typegen": "npx supabase gen types typescript --project-id waiflujimowdlwxrilwd > types/database.types.ts",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:status": "npx supabase status",
+    "db:push": "npx supabase db push"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  }
+}

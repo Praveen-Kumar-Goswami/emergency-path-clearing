@@ -118,6 +118,13 @@ DISPATCHER_PASSWORD=your-dispatcher-password
 
 ## 🏃 Running the Applications
 
+### Supabase Backend Verification & CLI
+```bash
+cd supabase
+npm install
+npm run test:connection   # Verifies live Supabase Auth, RLS, and RPCs
+```
+
 ### Mobile App (Expo Go)
 ```bash
 cd mobile

@@ -32,7 +32,7 @@ export const useDashboard = (enabled: boolean = true) => {
       if (rpcError) throw rpcError;
 
       if (data) {
-        setSnapshot(data as Snapshot);
+        setSnapshot(data as unknown as Snapshot);
         setLastUpdated(new Date());
         setConnection('live');
         setError(null);

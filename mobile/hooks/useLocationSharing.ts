@@ -101,7 +101,7 @@ export const useLocationSharing = () => {
         p_lat: lat,
         p_lng: lng,
         p_speed: speed,
-        p_heading: heading,
+        p_heading: heading ?? undefined,
       });
 
       if (rpcError) throw rpcError;

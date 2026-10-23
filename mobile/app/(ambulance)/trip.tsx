@@ -141,7 +141,7 @@ export default function AmbulanceLiveTripScreen() {
         p_trip: tripId,
         p_lat: fix.lat,
         p_lng: fix.lng,
-        p_heading: fix.heading,
+        p_heading: fix.heading ?? undefined,
       });
 
       if (error) {
