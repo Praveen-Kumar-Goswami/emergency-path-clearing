@@ -1,0 +1,13 @@
+{
+  "name": "simulator",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Emergency Path Clearing traffic test simulator with positive and negative controls",
+  "scripts": {
+    "start": "node simulate.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "dotenv": "^16.4.7"
+  }
+}
