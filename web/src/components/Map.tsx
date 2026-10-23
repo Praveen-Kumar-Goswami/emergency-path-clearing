@@ -107,6 +107,7 @@ interface MapControllerProps {
   targetPos: [number, number] | null;
   fitBoundsTrigger: number;
   routeCoords: [number, number][];
+  defaultCenter: [number, number];
 }
 
 const MapController: React.FC<MapControllerProps> = ({
@@ -114,19 +115,88 @@ const MapController: React.FC<MapControllerProps> = ({
   targetPos,
   fitBoundsTrigger,
   routeCoords,
+  defaultCenter,
 }) => {
   const map = useMap();
+  const hasInitializedView = useRef(false);
 
+  // Smooth layout measurement & sizing immediately on mount and on window resize
   useEffect(() => {
-    if (fitBoundsTrigger > 0 && routeCoords.length > 1) {
-      const bounds = L.latLngBounds(routeCoords);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
-    }
-  }, [fitBoundsTrigger, map, routeCoords]);
+    const invalidate = () => {
+      map.invalidateSize({ animate: false });
+    };
 
+    // Frame 1: Immediate invalidate
+    const raf1 = requestAnimationFrame(invalidate);
+
+    // Short cascading timers to catch container reflow / flexbox layout paint
+    const t1 = setTimeout(invalidate, 80);
+    const t2 = setTimeout(invalidate, 250);
+    const t3 = setTimeout(invalidate, 600);
+
+    // Initial positioning guarantee:
+    if (!hasInitializedView.current) {
+      hasInitializedView.current = true;
+      if (routeCoords.length > 1) {
+        map.fitBounds(L.latLngBounds(routeCoords), { padding: [60, 60], maxZoom: 16 });
+      } else if (targetPos) {
+        map.setView(targetPos, 14);
+      } else {
+        map.setView(defaultCenter, 14);
+      }
+    }
+
+    // ResizeObserver on map container for reactive layout adjustments
+    const container = map.getContainer();
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      resizeObserver = new ResizeObserver(() => {
+        invalidate();
+      });
+      resizeObserver.observe(container);
+    }
+
+    window.addEventListener('resize', invalidate);
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener('resize', invalidate);
+    };
+  }, [map, targetPos, routeCoords, defaultCenter]);
+
+  // Route fit bounds / recenter
+  useEffect(() => {
+    if (fitBoundsTrigger > 0) {
+      if (routeCoords.length > 1) {
+        const bounds = L.latLngBounds(routeCoords);
+        map.fitBounds(bounds, {
+          padding: [60, 60],
+          maxZoom: 16,
+          animate: true,
+          duration: 0.8,
+        });
+      } else {
+        map.flyTo(targetPos || defaultCenter, 14, {
+          animate: true,
+          duration: 0.8,
+        });
+      }
+    }
+  }, [fitBoundsTrigger, map, routeCoords, targetPos, defaultCenter]);
+
+  // Smooth follow camera
   useEffect(() => {
     if (follow && targetPos) {
-      map.panTo(targetPos, { animate: true, duration: 0.6 });
+      map.panTo(targetPos, {
+        animate: true,
+        duration: 0.8,
+        easeLinearity: 0.25,
+        noMoveStart: true,
+      });
     }
   }, [follow, targetPos, map]);
 
@@ -256,6 +326,9 @@ export const Map: React.FC<MapProps> = ({
         center={centerPos}
         zoom={14}
         scrollWheelZoom={true}
+        zoomAnimation={true}
+        fadeAnimation={true}
+        markerZoomAnimation={true}
         className="leaflet-map-element"
       >
         <TileLayer
@@ -263,6 +336,10 @@ export const Map: React.FC<MapProps> = ({
           attribution={currentTile.attribution}
           url={currentTile.url}
           maxZoom={currentTile.maxZoom}
+          keepBuffer={8}
+          updateWhenIdle={false}
+          updateWhenZooming={false}
+          updateInterval={100}
         />
 
         <MapController
@@ -270,6 +347,7 @@ export const Map: React.FC<MapProps> = ({
           targetPos={focusedVehiclePos || ambPos}
           fitBoundsTrigger={fitTrigger}
           routeCoords={routeCoords}
+          defaultCenter={DEFAULT_CENTER}
         />
 
         {/* 1. 35m Corridor Lateral Buffer Ribbon */}
@@ -427,17 +505,15 @@ export const Map: React.FC<MapProps> = ({
           <span>{follow ? 'Locked on Ambulance' : 'Free Camera'}</span>
         </button>
 
-        {/* Fit Bounds */}
-        {routeCoords.length > 1 && (
-          <button
-            className="hud-btn"
-            onClick={() => setFitTrigger((n) => n + 1)}
-            title="Recenter and fit route in viewport"
-          >
-            <span className="hud-icon">🗺️</span>
-            <span>Fit Route</span>
-          </button>
-        )}
+        {/* Fit Bounds or Recenter Default Base */}
+        <button
+          className="hud-btn"
+          onClick={() => setFitTrigger((n) => n + 1)}
+          title={routeCoords.length > 1 ? 'Recenter and fit route in viewport' : 'Recenter map on default Pune base (18.6233, 73.9123)'}
+        >
+          <span className="hud-icon">{routeCoords.length > 1 ? '🗺️' : '📍'}</span>
+          <span>{routeCoords.length > 1 ? 'Fit Route' : 'Center Pune Base'}</span>
+        </button>
 
         {/* Tile Switcher */}
         <div className="hud-pill-group">

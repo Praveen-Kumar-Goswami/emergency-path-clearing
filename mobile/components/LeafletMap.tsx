@@ -84,11 +84,18 @@ const LEAFLET_HTML = `
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
+        keepBuffer: 6,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(map);
 
       markersLayer.addTo(map);
       routeLayer.addTo(map);
+
+      setTimeout(function() {
+        if (map) map.invalidateSize();
+      }, 150);
 
       map.on('click', function(e) {
         if (window.ReactNativeWebView) {
