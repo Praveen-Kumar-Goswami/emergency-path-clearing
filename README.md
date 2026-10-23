@@ -11,7 +11,6 @@ A high-performance, real-time spatial emergency corridor warning and dispatch te
 ## 🌐 Live Production Deployment
 
 - **Vercel Web App**: [https://agile-fiddle-6jtq0n8.tmp.now](https://agile-fiddle-6jtq0n8.tmp.now)
-- **Claim Deployment**: [Claim on Vercel](https://vercel.com/claim-deployment?code=ca83a9c0-fc03-4168-abf9-ce74f3251f9e)
 - **GitHub Repository**: [Praveen-Kumar-Goswami/emergency-path-clearing](https://github.com/Praveen-Kumar-Goswami/emergency-path-clearing)
 
 ---
